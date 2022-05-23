@@ -122,6 +122,11 @@ public struct MapFeature
         "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "road"
     };
 
+    public enum HighwayTypes1
+    {
+        motorway, trunk, primary, secondary, tertiary, unclassified, residential, road
+    };
+
     [FieldOffset(0)] public long Id;
     [FieldOffset(8)] public int LabelOffset;
     [FieldOffset(12)] public GeometryType GeometryType;

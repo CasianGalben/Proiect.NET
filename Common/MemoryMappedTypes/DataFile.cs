@@ -24,7 +24,7 @@ public readonly ref struct MapFeatureData
     public GeometryType Type { get; init; }
     public ReadOnlySpan<char> Label { get; init; }
     public ReadOnlySpan<Coordinate> Coordinates { get; init; }
-    public Dictionary<string, string> Properties { get; init; }
+    public Dictionary<TypeOfGeo, string> Properties { get; init; }
 }
 
 /// <summary>
@@ -112,10 +112,7 @@ public unsafe class DataFile : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    private MapFeature* GetFeature(int i, ulong offset)
-    {
-        return (MapFeature*)(_ptr + offset + TileBlockHeaderSizeInBytes + i * MapFeatureSizeInBytes);
-    }
+    private MapFeature* GetFeature(int i, ulong offset) => (MapFeature*)(_ptr + offset + TileBlockHeaderSizeInBytes + (i * MapFeatureSizeInBytes));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private ReadOnlySpan<Coordinate> GetCoordinates(ulong coordinateOffset, int ithCoordinate, int coordinateCount)
@@ -142,6 +139,25 @@ public unsafe class DataFile : IDisposable
         GetString(stringsOffset, charsOffset, i + 1, out value);
     }
 
+    public static string[] GeoListType =
+    {
+        "railway",
+        "water",
+        "highway",
+        "natural",
+        "building",
+        "landuse",
+        "residential",
+        "farm",
+        "reservoir",
+        "boundary",
+        "leisure",
+        "amenity",
+        "name",
+        "place",
+        "admin_level"
+    };
+
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public void ForeachFeature(BoundingBox b, MapFeatureDelegate? action)
     {
@@ -150,10 +166,10 @@ public unsafe class DataFile : IDisposable
             return;
         }
 
-        var tiles = TiligSystem.GetTilesForBoundingBox(b.MinLat, b.MinLon, b.MaxLat, b.MaxLon);
-        for (var i = 0; i < tiles.Length; ++i)
+        var t = TiligSystem.GetTilesForBoundingBox(b.MinLat, b.MinLon, b.MaxLat, b.MaxLon);
+        for (var i = 0; i < t.Length; ++i)
         {
-            var header = GetTile(tiles[i]);
+            var header = GetTile(t[i]);
             if (header.Tile == null)
             {
                 continue;
@@ -181,11 +197,19 @@ public unsafe class DataFile : IDisposable
 
                 if (isFeatureInBBox)
                 {
-                    var properties = new Dictionary<string, string>(feature->PropertyCount);
+                    var properties = new Dictionary<TypeOfGeo, string>(feature->PropertyCount);
                     for (var p = 0; p < feature->PropertyCount; ++p)
                     {
                         GetProperty(header.Tile.Value.StringsOffsetInBytes, header.Tile.Value.CharactersOffsetInBytes, p * 2 + feature->PropertiesOffset, out var key, out var value);
-                        properties.Add(key.ToString(), value.ToString());
+                        if (!GeoListType.Contains(key.ToString())) continue;
+                        try
+                        {
+                            TypeOfGeo Keyforgeo = (TypeOfGeo)Enum.Parse(typeof(TypeOfGeo), key.ToString());
+                            properties.Add(Keyforgeo, value.ToString());  
+                        } catch (Exception e)
+                        {
+                            continue;
+                        }
                     }
 
                     if (!action(new MapFeatureData
@@ -195,7 +219,7 @@ public unsafe class DataFile : IDisposable
                             Coordinates = coordinates,
                             Type = feature->GeometryType,
                             Properties = properties
-                        }))
+                    }))
                     {
                         break;
                     }

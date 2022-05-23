@@ -104,7 +104,7 @@ Finally if working on the client application this can, at this point, be started
 Assuming the PWD/CWD is the root of the repository and the `dotnet` executable is in PATH:
 ```shell
 cd Client/ClientApplication
-dotnet run
+
 ```
 
 Clicking the *Render* button will make a request to the backend and will render the response in the window frame.
